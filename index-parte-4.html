@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>P3 DASH</title>
+</head>
+<body>
+	<h1>Lab 3: DASH - Equipo 32</h1>
+    <div class="code">
+        <video class="dashjs-player" autoplay controls preload="auto" muted>
+        </video>
+    </div>
+    <div class="code">
+        <p>Video Bitrate: <span id="bitrate"></span> kbps</p>
+        <p>Video Buffer: <span id="buffer"></span> secs</p>
+        <p>Video Representation: <span id="representation"></span></p>
+        <div id="chartContainer" style="height: 370px; width: 100%;"></div>
+    </div>
+
+<script src="https://canvasjs.com/assets/script/canvasjs.min.js"></script>
+
+    <script>
+	window.onload = function () {
+
+	
+  }
+        document.addEventListener("DOMContentLoaded", function () {
+            init();
+        });
+
+        function init() {
+            var video,
+                player,
+                mpd_url = "./output/stream.mpd";
+            const protData = {
+                "org.w3.clearkey": {
+                    "clearkeys": {
+                        "oW5AK5BW43HzbTSKpiu3SQ": "hyN9IKGfWKdAwFaE5pm0qg"
+                    }
+                }
+            };
+			
+			var arrayTiempo = [];
+        setInterval(getTiempo, 1000);
+        var bitrate = [];
+		bitrate[0] = 0;
+
+		var buflevel= [];
+		buflevel[0] = 0;
+		
+        function getTiempo() {
+            const d = new Date();
+            var t = d.getTime()/1000;
+            arrayTiempo.push(t);
+
+            bitrt = document.getElementById("bitrate").innerHTML;
+			bitrate.push(parseInt(bitrt));
+
+			buf = document.getElementById("buffer").innerHTML;
+			buflevel.push(parseFloat(buf));
+        }
+		
+	 datosBit =[];
+	 datosBuf =[];
+
+	var chart = new CanvasJS.Chart("chartContainer", {
+			
+			axisY:{
+				title: "Bitrate (Mbps)",
+				lineColor: "red",
+				tickColor: "red",
+				labelFontColor: "red",
+				titleFontColor: "red",
+			},
+			axisY2: {
+				title: "Buffer level (secs)",
+				lineColor: "blue",
+				tickColor: "blue",
+				labelFontColor: "blue",
+				titleFontColor: "blue",
+			},
+			toolTip: {
+				shared: true
+			},
+			legend: {
+				cursor: "pointer",
+				itemclick: toggleDataSeries
+			},
+			data: [{
+				type: "line",
+				name: "Bitrate (Mbps)",
+				color: "red",
+				axisYIndex: 0,
+				showInLegend: true,
+				dataPoints: datosBit
+			},
+			{
+				type: "line",
+				name: "Buffer level (secs)",
+				color: "blue",
+				axisYType: "secondary",
+				showInLegend: true,
+				dataPoints: datosBuf
+			}]
+		});
+		chart.render();
+
+		function toggleDataSeries(e) {
+			if (typeof (e.dataSeries.visible) === "undefined" || e.dataSeries.visible) {
+				e.dataSeries.visible = false;
+			} else {
+				e.dataSeries.visible = true;
+			}
+			e.chart.render();
+		}
+		
+		function updateData(bitrate,bufflevel){
+			var date = new Date();
+			var hh = date.getHours();
+			var mm = date.getMinutes();
+			var ss = date.getSeconds();
+
+			var tiempo = hh+":"+mm+":"+ss;
+
+			datoBit = { 
+			"y": bitrate,
+			"label": tiempo
+			};
+			chart.data[0].dataPoints.push(datoBit);
+
+			datoBuf = {			
+			"y": bufflevel,
+			"label": tiempo
+			};			
+			chart.data[1].dataPoints.push(datoBuf);
+
+			chart.render();
+		}
+
+            video = document.querySelector("video");
+            player = dashjs.MediaPlayer().create();
+            player.initialize(video, mpd_url, true);
+            player.setProtectionData(protData);
+            player.on(dashjs.MediaPlayer.events["PLAYBACK_ENDED"], function () {
+                clearInterval(eventPoller);
+            });
+
+            var eventPoller = setInterval(function () {
+                var streamInfo = player.getActiveStream().getStreamInfo();
+                var dashMetrics = player.getDashMetrics();
+                var dashAdapter = player.getDashAdapter();
+                if (dashMetrics && streamInfo) {
+                    const periodIdx = streamInfo.index;
+                    var repSwitch = dashMetrics.getCurrentRepresentationSwitch('video', true);
+                    var bufferLevel = dashMetrics.getCurrentBufferLevel('video', true);
+                    var bitrate = repSwitch ? Math.round(dashAdapter.
+                        getBandwidthForRepresentation(repSwitch.to, periodIdx) / 1000) : NaN;
+                    document.getElementById('buffer').innerText = bufferLevel;
+                    document.getElementById('bitrate').innerText = bitrate;
+                    document.getElementById('representation').innerText = repSwitch.to;
+					
+					updateData(parseInt(bitrate),parseFloat(bufferLevel));
+                }
+            }, 1000);
+        }
+    </script>
+
+    <script src="dash.all.min.js">
+    </script>
+
+</body>
+
+</html>
